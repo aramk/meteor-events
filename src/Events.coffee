@@ -3,6 +3,10 @@ Events =
   config: (args) ->
     args = Setter.merge({}, args)
 
+    return if @_isConfig
+    setUpPubSub()
+    @_isConfig = true
+
   parse: (arg) ->
     if Types.isString(arg)
       arg = {content: arg}
@@ -46,3 +50,48 @@ schema = new SimpleSchema
 
 collection = new Meteor.Collection('events')
 collection.attachSchema(schema)
+
+
+# pubs = {}
+
+setUpPubSub = ->
+  if Meteor.isServer
+    Meteor.publish 'events', (args) ->
+      return unless @userId
+
+      # subscriptionId = args.subscriptionId
+      # unless subscriptionId
+      #   throw new Error('Subscription ID not provided')
+      # pubs[@subscriptionId] ?= @
+
+      selector =
+        $or: [
+          {userId: $exists: false}
+          {userId: @userId}
+        ]
+      options =
+        sort: dateCreated: -1
+        limit: 10
+      
+      cursor = collection.find(selector, options)
+
+      console.log 'cursor', cursor.count()
+
+      return cursor
+
+      # initializing = true
+
+      # Signal that we plan to use manual methods above.
+      # return undefined
+  else
+    subscriptionId = Collections.generateId()
+    Meteor.subscribe 'events',
+      subscriptionId: subscriptionId
+
+return unless Meteor.isServer
+
+# Meteor.methods
+
+#   'events/subscribe': (args) ->
+#     args.count
+
