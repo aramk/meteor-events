@@ -64,11 +64,11 @@ setUpPubSub = ->
       #   throw new Error('Subscription ID not provided')
       # pubs[@subscriptionId] ?= @
 
-      selector =
-        $or: [
-          {userId: $exists: false}
-          {userId: @userId}
-        ]
+      selector = $or: [
+        {userId: $exists: false}
+        {userId: @userId}
+      ]
+
       options =
         sort: dateCreated: -1
         limit: 10
@@ -85,13 +85,15 @@ setUpPubSub = ->
       # return undefined
   else
     subscriptionId = Collections.generateId()
-    Meteor.subscribe 'events',
-      subscriptionId: subscriptionId
+    Meteor.subscribe 'events', subscriptionId: subscriptionId
 
 return unless Meteor.isServer
 
-# Meteor.methods
+Meteor.methods
 
-#   'events/subscribe': (args) ->
-#     args.count
+  'events/unreadCount': (args) ->
+    collection.find(userId: @userId).count()
 
+  'events/clearAll': ->
+    selector = {userId: @userId, dateRead: $exists: false}
+    collection.update selector, {dateRead: $exists: new Date()}, {multi: true}
