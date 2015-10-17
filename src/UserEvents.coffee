@@ -41,7 +41,6 @@ schema = new SimpleSchema
 
 collection = new Meteor.Collection('userEvents')
 collection.attachSchema(schema)
-# Only server-side can create events.
 allowUser = (userId, doc) -> doc.userId == userId
 collection.allow
   insert: -> allowUser
@@ -54,3 +53,8 @@ Meteor.methods
     return unless @userId?
     selector.userId = @userId
     UserEvents.read(selector)
+
+  'userEvents/isRead': (selector) ->
+    return unless @userId?
+    selector.userId = @userId
+    UserEvents.isRead(selector)

@@ -26,4 +26,14 @@ Fixtures.events = [
     access:
       roles: ['writer']
   }
+  # Created in the future to ensure it is included in the unread count.
+  {
+    _id: 'event4'
+    title: 'Test Event'
+    content: 'This is a test'
+    label: 'foo3'
+    dateCreated: moment().add(1, 'hour').toDate()
+    access:
+      roles: ['reader']
+  }
 ]

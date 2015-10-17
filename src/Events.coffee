@@ -5,6 +5,7 @@ Events =
 
     return if @_isConfig
     setUpPubSub()
+    UserEventStats.config()
     @_isConfig = true
 
   parse: (arg) ->
@@ -81,7 +82,6 @@ setUpPubSub = ->
       unless @userId then throw new Meteor.Error(403, 'User must exist for user events publication')
 
       eventsCursor = Events.findByUser(@userId)
-
       initializing = true
 
       addEvents = (id, event) =>

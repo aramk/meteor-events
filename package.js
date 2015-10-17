@@ -19,6 +19,7 @@ Package.onUse(function (api) {
     'aldeed:collection2@2.3.3',
     'aramk:q@1.0.1_1',
     'digilord:roles@1.2.12',
+    'peerlibrary:server-autorun@0.5.1',
     'urbanetic:utility@1.0.1'
   ]);
   api.use([
@@ -26,11 +27,13 @@ Package.onUse(function (api) {
   ], {weak: true});
   api.export([
     'Events',
-    'UserEvents'
+    'UserEvents',
+    'UserEventStats'
     ]);
   api.addFiles([
     'src/Events.coffee',
-    'src/UserEvents.coffee'
+    'src/UserEvents.coffee',
+    'src/UserEventStats.coffee'
   ]);
 });
 
@@ -44,6 +47,7 @@ Package.onTest(function (api) {
     'tracker',
 
     'digilord:roles',
+    'momentjs:moment',
     'practicalmeteor:munit',
     'urbanetic:utility',
     // 'peterellisjones:describe',
