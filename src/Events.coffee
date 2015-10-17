@@ -23,19 +23,23 @@ Events =
     collection.insert arg, Promises.toCallback(df)
     df.promise
 
+  getCollection: -> collection
+
   findByRoles: (roles) ->
     if roles? and Types.isString(roles) then roles = [roles]
     return [] if _.isEmpty(roles)
     collection.find('access.roles': $in: roles)
 
   findByUser: (userId) ->
+    selector = @getUserSelector(userId)
+    collection.find(selector)
+
+  getUserSelector: (userId) ->
     user = Meteor.users.findOne(_id: userId)
     unless user then throw new Error("Invalid User ID: #{userId}")
     selector = $or: [{'access.userIds': $in: [userId]}]
     unless _.isEmpty(user.roles) then selector.$or.push {'access.roles': $in: user.roles}
-    collection.find(selector)
-
-  getCollection: -> collection
+    selector
 
 schema = new SimpleSchema
   title:
@@ -62,14 +66,29 @@ schema = new SimpleSchema
 
 collection = new Meteor.Collection('events')
 collection.attachSchema(schema)
+# Only server-side can create events.
+collection.allow
+  insert: -> false
+  update: -> false
+  remove: -> false
 
 # pubs = {}
 
 setUpPubSub = ->
   if Meteor.isServer
-    Meteor.publish 'events', -> collection.find()
+    Meteor.publish 'events', ->
+      unless @userId then throw new Meteor.Error(403, 'User must exist for events publication')
+
+      selector = Events.getUserSelector(@userId)
+      options =
+        sort: dateCreated: -1
+        limit: 10
+      collection.find(selector, options)
   else
-    Meteor.subscribe('events')
+    Tracker.autorun ->
+      userId = Meteor.userId()
+      return unless userId?
+      Meteor.subscribe('events')
 
   # if Meteor.isServer
   #   Meteor.publish 'events', (args) ->

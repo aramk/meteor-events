@@ -6,4 +6,11 @@ Fixtures.users = Object.freeze [
     profile: name: 'Test User'
     roles: ['reader']
   }
+  {
+    _id: 'test2'
+    username: 'test2'
+    password: 'password2'
+    profile: name: 'Test User 2'
+    roles: ['reader', 'writer']
+  }
 ]

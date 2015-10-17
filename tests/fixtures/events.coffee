@@ -13,4 +13,11 @@ Fixtures.events = [
     access:
       roles: ['reader']
   }
+  {
+    title: 'Test Event'
+    content: 'This is a test'
+    label: 'foo2'
+    access:
+      roles: ['writer']
+  }
 ]
