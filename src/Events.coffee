@@ -13,7 +13,6 @@ Events =
     if Types.isObjectLiteral(arg)
       arg.dateCreated ?= new Date()
       return arg
-      # args.userId = AccountsUtil.resolveUser()?._id
     else
       throw new Error('Invalid event argument: ' + arg)
 
@@ -72,63 +71,47 @@ collection.allow
   update: -> false
   remove: -> false
 
-# pubs = {}
-
 setUpPubSub = ->
+  collectionId = Collections.getName(collection)
+  userCollection = UserEvents.getCollection()
+  userCollectionId = Collections.getName(userCollection)
   if Meteor.isServer
+    # Meteor.publish 'userEvents', ->
     Meteor.publish 'events', ->
-      unless @userId then throw new Meteor.Error(403, 'User must exist for events publication')
+      unless @userId then throw new Meteor.Error(403, 'User must exist for user events publication')
 
-      selector = Events.getUserSelector(@userId)
-      options =
-        sort: dateCreated: -1
-        limit: 10
-      collection.find(selector, options)
+      eventsCursor = Events.findByUser(@userId)
+
+      initializing = true
+
+      addEvents = (id, event) =>
+        @added(collectionId, id, event)
+        userCollection.find(eventId: id).forEach (userEvent) =>
+          @added(userCollectionId, userEvent._id, userEvent)
+
+      observeHandle = eventsCursor.observeChanges
+        added: (id, event) ->
+          return if initializing?
+          addEvents(id, event)
+        changed: (id, event) =>
+          @changed(collectionId, event._id, event)
+        removed: (id) =>
+          @removed(collectionId, id)
+          collection.find(eventId: id).forEach (userEvent) =>
+            @removed(userCollectionId, userEvent._id)
+
+      eventsCursor.forEach (event) -> addEvents(event._id, event)
+
+      initializing = false
+      @ready()
+      @onStop ->
+        observeHandle.stop()
+
+      # Signal that we plan to use manual methods above.
+      return undefined
+
   else
     Tracker.autorun ->
       userId = Meteor.userId()
       return unless userId?
       Meteor.subscribe('events')
-
-  # if Meteor.isServer
-  #   Meteor.publish 'events', (args) ->
-  #     return unless @userId
-
-  #     # subscriptionId = args.subscriptionId
-  #     # unless subscriptionId
-  #     #   throw new Error('Subscription ID not provided')
-  #     # pubs[@subscriptionId] ?= @
-
-  #     selector = $or: [
-  #       {userId: $exists: false}
-  #       {userId: @userId}
-  #     ]
-
-  #     options =
-  #       sort: dateCreated: -1
-  #       limit: 10
-      
-  #     cursor = collection.find(selector, options)
-
-  #     console.log 'cursor', cursor.count()
-
-  #     return cursor
-
-  #     # initializing = true
-
-  #     # Signal that we plan to use manual methods above.
-  #     # return undefined
-  # else
-  #   subscriptionId = Collections.generateId()
-  #   Meteor.subscribe 'events', subscriptionId: subscriptionId
-
-# return unless Meteor.isServer
-
-# Meteor.methods
-
-#   'events/unreadCount': (args) ->
-#     collection.find(userId: @userId).count()
-
-#   'events/clearAll': ->
-#     selector = {userId: @userId, dateRead: $exists: false}
-#     collection.update selector, {dateRead: $exists: new Date()}, {multi: true}

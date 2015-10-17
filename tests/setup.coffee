@@ -19,3 +19,6 @@ Logger.info 'Users', Meteor.users.find().fetch()
 
 Events.getCollection().remove({})
 _.each Fixtures.events, (event) -> Events.add(event)
+
+UserEvents.getCollection().remove({})
+_.each Fixtures.userEvents, (userEvent) -> UserEvents.getCollection().insert(userEvent)

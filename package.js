@@ -24,9 +24,13 @@ Package.onUse(function (api) {
   api.use([
     'semantic:ui-css@2.0.8'
   ], {weak: true});
-  api.export('Events');
+  api.export([
+    'Events',
+    'UserEvents'
+    ]);
   api.addFiles([
-    'src/Events.coffee'
+    'src/Events.coffee',
+    'src/UserEvents.coffee'
   ]);
 });
 
@@ -51,6 +55,7 @@ Package.onTest(function (api) {
     'tests/fixtures/Fixtures.coffee',
     'tests/fixtures/events.coffee',
     'tests/fixtures/users.coffee',
+    'tests/fixtures/userEvents.coffee',
 
     'tests/setup.coffee',
     'tests/EventsSpec.coffee',
