@@ -23,6 +23,18 @@ Events =
     collection.insert arg, Promises.toCallback(df)
     df.promise
 
+  findByRoles: (roles) ->
+    if roles? and Types.isString(roles) then roles = [roles]
+    return [] if _.isEmpty(roles)
+    collection.find('access.roles': $in: roles)
+
+  findByUser: (userId) ->
+    user = Meteor.users.findOne(_id: userId)
+    unless user then throw new Error("Invalid User ID: #{userId}")
+    selector = $or: [{'access.userIds': $in: [userId]}]
+    unless _.isEmpty(user.roles) then selector.$or.push {'access.roles': $in: user.roles}
+    collection.find(selector)
+
   getCollection: -> collection
 
 schema = new SimpleSchema
@@ -32,10 +44,6 @@ schema = new SimpleSchema
   content:
     type: String
     optional: true
-  userId:
-    type: String
-    index: true
-    optional: true
   label:
     type: String
     index: true
@@ -43,57 +51,65 @@ schema = new SimpleSchema
   dateCreated:
     type: Date
     index: true
-  dateRead:
-    type: Date
-    index: true
+  'access.roles':
+    type: [String]
     optional: true
+    index: true
+  'access.userIds':
+    type: [String]
+    optional: true
+    index: true
 
 collection = new Meteor.Collection('events')
 collection.attachSchema(schema)
-
 
 # pubs = {}
 
 setUpPubSub = ->
   if Meteor.isServer
-    Meteor.publish 'events', (args) ->
-      return unless @userId
-
-      # subscriptionId = args.subscriptionId
-      # unless subscriptionId
-      #   throw new Error('Subscription ID not provided')
-      # pubs[@subscriptionId] ?= @
-
-      selector = $or: [
-        {userId: $exists: false}
-        {userId: @userId}
-      ]
-
-      options =
-        sort: dateCreated: -1
-        limit: 10
-      
-      cursor = collection.find(selector, options)
-
-      console.log 'cursor', cursor.count()
-
-      return cursor
-
-      # initializing = true
-
-      # Signal that we plan to use manual methods above.
-      # return undefined
+    Meteor.publish 'events', -> collection.find()
   else
-    subscriptionId = Collections.generateId()
-    Meteor.subscribe 'events', subscriptionId: subscriptionId
+    Meteor.subscribe('events')
 
-return unless Meteor.isServer
+  # if Meteor.isServer
+  #   Meteor.publish 'events', (args) ->
+  #     return unless @userId
 
-Meteor.methods
+  #     # subscriptionId = args.subscriptionId
+  #     # unless subscriptionId
+  #     #   throw new Error('Subscription ID not provided')
+  #     # pubs[@subscriptionId] ?= @
 
-  'events/unreadCount': (args) ->
-    collection.find(userId: @userId).count()
+  #     selector = $or: [
+  #       {userId: $exists: false}
+  #       {userId: @userId}
+  #     ]
 
-  'events/clearAll': ->
-    selector = {userId: @userId, dateRead: $exists: false}
-    collection.update selector, {dateRead: $exists: new Date()}, {multi: true}
+  #     options =
+  #       sort: dateCreated: -1
+  #       limit: 10
+      
+  #     cursor = collection.find(selector, options)
+
+  #     console.log 'cursor', cursor.count()
+
+  #     return cursor
+
+  #     # initializing = true
+
+  #     # Signal that we plan to use manual methods above.
+  #     # return undefined
+  # else
+  #   subscriptionId = Collections.generateId()
+  #   Meteor.subscribe 'events', subscriptionId: subscriptionId
+
+# return unless Meteor.isServer
+
+# Meteor.methods
+
+#   'events/unreadCount': (args) ->
+#     collection.find(userId: @userId).count()
+
+#   'events/clearAll': ->
+#     selector = {userId: @userId, dateRead: $exists: false}
+#     collection.update selector, {dateRead: $exists: new Date()}, {multi: true}

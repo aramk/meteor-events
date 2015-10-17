@@ -9,21 +9,50 @@ Package.describe({
 Package.onUse(function (api) {
   api.versionsFrom('METEOR@0.9.0');
   api.use([
+    'accounts-password',
     'coffeescript',
     'underscore',
     'reactive-var@1.0.4',
     'tracker@1.0.5',
+
     'aldeed:simple-schema@1.3.2',
     'aldeed:collection2@2.3.3',
     'aramk:q@1.0.1_1',
+    'digilord:roles@1.2.12',
     'urbanetic:utility@1.0.1'
-  ], ['client', 'server']);
+  ]);
   api.use([
     'semantic:ui-css@2.0.8'
   ], {weak: true});
-  api.imply('semantic:ui-css');
-  api.export('Events', ['client', 'server']);
+  api.export('Events');
   api.addFiles([
     'src/Events.coffee'
-  ], ['client', 'server']);
+  ]);
+});
+
+Package.onTest(function (api) {
+  api.use([
+    'accounts-password',
+    'coffeescript',
+    'tinytest',
+    'test-helpers',
+    'underscore',
+    'tracker',
+
+    'digilord:roles',
+    'practicalmeteor:munit',
+    'urbanetic:utility',
+    // 'peterellisjones:describe',
+    
+    'aramk:events'
+  ]);
+
+  api.addFiles([
+    'tests/fixtures/Fixtures.coffee',
+    'tests/fixtures/events.coffee',
+    'tests/fixtures/users.coffee',
+
+    'tests/setup.coffee',
+    'tests/EventsSpec.coffee',
+  ]);
 });
