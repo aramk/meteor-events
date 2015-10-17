@@ -23,6 +23,18 @@ describe moduleName, ->
   it 'has docs', ->
     expect(collection.find().count()).not.to.equal(0)
 
+  it 'can mark events as read', ->
+    expect(UserEvents.isRead(userId: 'user1', eventId: 'event1')).to.be.true
+
+    selector = userId: 'user1', eventId: 'event2'
+    expect(UserEvents.isRead(selector)).to.be.false
+    docId = UserEvents.read(selector)
+    expect(UserEvents.isRead(selector)).to.be.true
+
+    # Ensure server changes are not synced to the client cause the test to fail.
+    userCollection.remove(docId)
+    expect(UserEvents.isRead(selector)).to.be.false
+
 if Meteor.isServer
 
   describe "#{moduleName} Server", ->
