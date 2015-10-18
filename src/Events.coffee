@@ -17,12 +17,6 @@ Events =
     else
       throw new Error('Invalid event argument: ' + arg)
 
-  add: (arg) ->
-    df = Q.defer()
-    parsed = @parse(arg)
-    collection.insert arg, Promises.toCallback(df)
-    df.promise
-
   getCollection: -> collection
 
   findByRoles: (roles) ->
@@ -37,9 +31,14 @@ Events =
   getUserSelector: (userId) ->
     user = Meteor.users.findOne(_id: userId)
     unless user then throw new Error("Invalid User ID: #{userId}")
-    selector = $or: [{'access.userIds': $in: [userId]}]
+    # Ensure the user IDs and roles match, or there are no access restrictions.
+    selector = $or: [{'access.userIds': $in: [userId]}, {access: $exists: false}]
     unless _.isEmpty(user.roles) then selector.$or.push {'access.roles': $in: user.roles}
     selector
+
+if Meteor.isServer then _.extend Events,
+
+  add: (arg) -> collection.insert(@parse(arg))
 
 schema = new SimpleSchema
   title:
@@ -77,7 +76,6 @@ setUpPubSub = ->
   userCollection = UserEvents.getCollection()
   userCollectionId = Collections.getName(userCollection)
   if Meteor.isServer
-    # Meteor.publish 'userEvents', ->
     Meteor.publish 'events', ->
       unless @userId then throw new Meteor.Error(403, 'User must exist for user events publication')
 
@@ -101,6 +99,8 @@ setUpPubSub = ->
             @removed(userCollectionId, userEvent._id)
 
       eventsCursor.forEach (event) -> addEvents(event._id, event)
+
+      Logger.info "Published #{eventsCursor.count()} events"
 
       initializing = false
       @ready()
