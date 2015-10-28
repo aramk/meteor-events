@@ -71,12 +71,17 @@ _.extend UserEventStats,
     return unless stats?
     readAllDate = stats.readAllDate
     eventSelector = Events.getUserSelector(userId)
+    # Consider all events before read all date as read.
     if readAllDate
       eventSelector = $and: [eventSelector, {dateCreated: $gt: readAllDate}]
     unread = 0
     eventsCollection.find(eventSelector).forEach (event) ->
       unread++ unless UserEvents.isRead(userId: userId, eventId: event._id)
     unread
+
+  readAll: (userId) ->
+    collection.update {userId: userId}, {$set: readAllDate: new Date()}
+    @_updateCountReactive(userId)
 
   _updateCountReactive: (userId) ->
     onEventChange = _.throttle Meteor.bindEnvironment =>
@@ -89,3 +94,9 @@ _.extend UserEventStats,
     onEventChange()
 
 Accounts.onLogin Meteor.bindEnvironment (info) -> UserEventStats.setUp(info.user._id)
+
+Meteor.methods
+
+  'userEvents/readAll': ->
+    AccountsUtil.authorizeUser(@userId)
+    UserEventStats.readAll(@userId)

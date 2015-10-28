@@ -89,7 +89,7 @@ setUpPubSub = ->
 
       observeHandle = eventsCursor.observeChanges
         added: (id, event) ->
-          return if initializing?
+          return if initializing
           addEvents(id, event)
         changed: (id, event) =>
           @changed(collectionId, event._id, event)

@@ -20,6 +20,7 @@ Package.onUse(function (api) {
     'aramk:q@1.0.1_1',
     'digilord:roles@1.2.12',
     'peerlibrary:server-autorun@0.5.1',
+    'urbanetic:accounts-ui@0.5.0',
     'urbanetic:utility@1.0.1'
   ]);
   api.use([

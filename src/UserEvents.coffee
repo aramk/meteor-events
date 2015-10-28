@@ -50,11 +50,11 @@ collection.allow
 Meteor.methods
   
   'userEvents/read': (selector) ->
-    return unless @userId?
+    AccountsUtil.authorizeUser(@userId)
     selector.userId = @userId
     UserEvents.read(selector)
 
   'userEvents/isRead': (selector) ->
-    return unless @userId?
+    AccountsUtil.authorizeUser(@userId)
     selector.userId = @userId
     UserEvents.isRead(selector)
