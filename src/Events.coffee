@@ -24,9 +24,10 @@ Events =
     return [] if _.isEmpty(roles)
     collection.find('access.roles': $in: roles)
 
-  findByUser: (userId) ->
+  findByUser: (userId, options) ->
+    options = Setter.merge {sort: dateCreated: -1}, options
     selector = @getUserSelector(userId)
-    collection.find(selector)
+    collection.find(selector, options)
 
   getUserSelector: (userId) ->
     user = Meteor.users.findOne(_id: userId)
@@ -76,42 +77,94 @@ setUpPubSub = ->
   userCollection = UserEvents.getCollection()
   userCollectionId = Collections.getName(userCollection)
   if Meteor.isServer
+    
+    publications = {}
+    MIN_PUBLISH_LIMIT = 10
+    PUBLISH_INCREMENT = 10
+
     Meteor.publish 'events', ->
       unless @userId then throw new Meteor.Error(403, 'User must exist for user events publication')
 
-      eventsCursor = Events.findByUser(@userId)
+      publications[@userId] = @
+      Logger.info "Created events publication for user #{@userId}"
+      @eventsCursor = Events.findByUser(@userId)
       initializing = true
+      @reactiveLimit = new ReactiveVar(MIN_PUBLISH_LIMIT)
+      addedMap = {}
+      addedCount = 0
 
-      addEvents = (id, event) =>
+      addEvent = (id, event, options) =>
+        if addedCount >= @reactiveLimit.get()
+          if options?.freeNecessarySpace
+            # Remove the oldest event to make room for the new event.
+            sortedEvents = _.sortBy _.values(addedMap), (event) -> event.dateCreated.getTime()
+            oldId = sortedEvents[0]?._id
+            removeEvent(oldId) if oldId?
+          # Falls through if space could not be freed.
+          return if addedCount >= @reactiveLimit.get()
+        return if addedMap[id]?
         @added(collectionId, id, event)
+        addedMap[id] = event
+        event._id = id
+        addedCount++
         userCollection.find(eventId: id).forEach (userEvent) =>
           @added(userCollectionId, userEvent._id, userEvent)
 
-      observeHandle = eventsCursor.observeChanges
+      removeEvent = (id) =>
+        @removed(collectionId, id)
+        delete addedMap[id]
+        addedCount--
+        collection.find(eventId: id).forEach (userEvent) =>
+          @removed(userCollectionId, userEvent._id)
+
+      observeHandle = @eventsCursor.observeChanges
         added: (id, event) ->
           return if initializing
-          addEvents(id, event)
+          addEvent(id, event, {freeNecessarySpace: true})
         changed: (id, event) =>
           @changed(collectionId, event._id, event)
-        removed: (id) =>
-          @removed(collectionId, id)
-          collection.find(eventId: id).forEach (userEvent) =>
-            @removed(userCollectionId, userEvent._id)
+        removed: (id) -> removeEvent(id)
 
-      eventsCursor.forEach (event) -> addEvents(event._id, event)
-
-      Logger.info "Published #{eventsCursor.count()} events"
+      trackerHandle = Tracker.autorun =>
+        limit = @reactiveLimit.get()
+        @eventsCursor.forEach (event) -> addEvent(event._id, event)
+        Logger.info "Published #{addedCount} initial events"
 
       initializing = false
       @ready()
-      @onStop ->
+      @onStop =>
+        delete publications[@userId]
         observeHandle.stop()
 
       # Signal that we plan to use manual methods above.
       return undefined
 
+    getAuthorizedPub = (userId) ->
+      AccountsUtil.authorizeUser(userId)
+      pub = publications[userId]
+      unless pub
+        throw new Meteor.Error(500, "Publication not found for userId #{userId}")
+      pub
+
+    Meteor.methods
+
+      'events/publish/more': ->
+        pub = getAuthorizedPub(@userId)
+        limit = pub.reactiveLimit.get()
+        maxLimit = pub.eventsCursor.count()
+        newLimit = Math.max(Math.min(limit + PUBLISH_INCREMENT, maxLimit), MIN_PUBLISH_LIMIT)
+        pub.reactiveLimit.set(newLimit)
+
+      'events/publish/count': ->
+        pub = getAuthorizedPub(@userId)
+        limit = pub.reactiveLimit.get()
+        maxLimit = pub.eventsCursor.count()
+        {published: limit, total: maxLimit}
+
   else
+    subscribeDf = Q.defer()
+    Events.subscribe = -> subscribeDf.promise
     Tracker.autorun ->
       userId = Meteor.userId()
       return unless userId?
-      Meteor.subscribe('events')
+      Meteor.subscribe 'events', -> subscribeDf.resolve()
