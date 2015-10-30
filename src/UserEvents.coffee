@@ -3,8 +3,7 @@ UserEvents =
   getCollection: -> collection
 
   read: (selector) ->
-    unless selector.eventId? and selector.userId?
-      throw new Error('Selector must have event ID and user ID')
+    validateSelector(selector)
     docs = collection.find(selector).fetch()
     count = _.size(docs)
     if count > 1
@@ -22,11 +21,19 @@ UserEvents =
         return docId
 
   # Can be called on the client assuming docs are synced.
-  isRead: (selector) ->
-    unless selector.eventId? and selector.userId?
-      throw new Error('Selector must have event ID and user ID')
+  isRead: (selector) -> getDateRead(selector)? ? false
+
+  getDateRead: (selector) ->
+    validateSelector(selector)
     doc = collection.findOne(selector)
-    collection.findOne(selector)?.dateRead? ? false
+    collection.findOne(selector)?.dateRead
+
+validateSelector = (selector) ->
+  console.log('selector 1', selector)
+  selector.userId ?= AccountsUtil.resolveUser()?._id
+  console.log('selector 2', selector)
+  unless selector.eventId? and selector.userId?
+    throw new Error('Selector must have event ID and user ID')
 
 schema = new SimpleSchema
   eventId:

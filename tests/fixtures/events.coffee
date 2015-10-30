@@ -36,4 +36,15 @@ Fixtures.events = [
     access:
       roles: ['reader']
   }
+  {
+    _id: 'event5'
+    title: 'Test Event'
+    content: 'This is a test'
+    label: 'foo4'
+    dateCreated: moment().add(2, 'hour').toDate()
+    access:
+      userIds: ['user1']
+      roles: ['reader']
+      excludedUserIds: ['user1']
+  }
 ]

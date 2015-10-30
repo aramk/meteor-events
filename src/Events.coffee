@@ -42,7 +42,7 @@ Events =
         userIdSelector
         {'access.roles': $in: user.roles}
       ]}
-    # excludedUserIds must always be honoured. 
+    # excludedUserIds must always be honoured.
     userSelectors = {$and: [
       userIdRoleSelector
       userIdNotSelector
