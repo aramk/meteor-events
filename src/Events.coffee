@@ -120,6 +120,7 @@ setUpPubSub = ->
       initializing = true
       @reactiveLimit = new ReactiveVar(MIN_PUBLISH_LIMIT)
       addedMap = {}
+      addedUserMap = {}
       addedCount = 0
 
       addEvent = (id, event, options) =>
@@ -138,21 +139,43 @@ setUpPubSub = ->
         addedCount++
         userCollection.find(eventId: id).forEach (userEvent) =>
           @added(userCollectionId, userEvent._id, userEvent)
+          addedUserMap[userEvent._id] = true
 
       removeEvent = (id) =>
+        return unless addedMap[id]
         @removed(collectionId, id)
         delete addedMap[id]
         addedCount--
         collection.find(eventId: id).forEach (userEvent) =>
+          return unless addedUserMap[userEvent._id]
           @removed(userCollectionId, userEvent._id)
+          delete addedUserMap[userEvent._id]
 
       observeHandle = @eventsCursor.observeChanges
         added: (id, event) ->
           return if initializing
           addEvent(id, event, {freeNecessarySpace: true})
         changed: (id, event) =>
-          @changed(collectionId, event._id, event)
+          return unless addedMap[id]
+          @changed(collectionId, id, event)
         removed: (id) -> removeEvent(id)
+
+      # Ensure changing and removing user events are published to the client. Otherwise
+      # modifications on the client will be reject by the server.
+      userObserveHandle = userCollection.find().observeChanges
+        added: (id, userEvent) =>
+          # If a new user event is added belonging to an already published event, add it on the
+          # client.
+          return unless addedMap[userEvent.eventId]
+          @added(userCollectionId, id, userEvent)
+          addedUserMap[id] = true
+        changed: (id, userEvent) =>
+          return unless addedUserMap[id]
+          @changed(userCollectionId, id, userEvent)
+        removed: (id) =>
+          return unless addedUserMap[id]
+          delete addedUserMap[id]
+          @removed(userCollectionId, id)
 
       trackerHandle = Tracker.autorun =>
         limit = @reactiveLimit.get()
@@ -164,6 +187,7 @@ setUpPubSub = ->
       @onStop =>
         delete publications[@userId]
         observeHandle.stop()
+        userObserveHandle.stop()
 
       # Signal that we plan to use manual methods above.
       return undefined

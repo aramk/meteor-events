@@ -84,9 +84,7 @@ _.extend UserEventStats,
     @_updateCountReactive(userId)
 
   _updateCountReactive: (userId) ->
-    onEventChange = _.throttle Meteor.bindEnvironment =>
-      @_setUnreadCount(userId)
-    , 1000
+    onEventChange = _.throttle Meteor.bindEnvironment(=> @_setUnreadCount(userId)), 1000
 
     Collections.observe Events.getCollection(), onEventChange
     Collections.observe UserEvents.getCollection(), onEventChange
