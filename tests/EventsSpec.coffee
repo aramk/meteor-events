@@ -46,11 +46,13 @@ if Meteor.isServer
     it 'can find events by roles', ->
       cursor = Events.findByRoles('reader')
       expect(cursor.count()).to.equal(2)
-      expect(cursor.fetch()[0].label).equal('bar')
+      labels = cursor.map (event) -> event.label
+      expect(_.difference(['bar', 'foo3'], labels).length).to.equal(0)
 
       cursor = Events.findByRoles('writer')
       expect(cursor.count()).to.equal(1)
-      expect(cursor.fetch()[0].label).equal('foo2')
+      labels = cursor.map (event) -> event.label
+      expect(_.difference(['foo2'], labels).length).to.equal(0)
 
     it 'can find events by user IDs', ->
       cursor = Events.findByUser('user1')

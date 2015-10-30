@@ -6,6 +6,11 @@ createRoles = (roles) ->
   _.each newRoles, (role) -> Roles.createRole(role)
 
 Meteor.users.remove({})
+
+AccountsUi.config
+  account:
+    enabledByDefault: true
+
 _.each Fixtures.users, (userDoc) ->
   userId = Meteor.users.insert
     _id: userDoc.username

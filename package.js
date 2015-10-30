@@ -50,6 +50,7 @@ Package.onTest(function (api) {
     'digilord:roles',
     'momentjs:moment',
     'practicalmeteor:munit',
+    'urbanetic:accounts-ui',
     'urbanetic:utility',
     // 'peterellisjones:describe',
     

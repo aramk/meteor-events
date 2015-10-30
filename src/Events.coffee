@@ -33,9 +33,25 @@ Events =
     user = Meteor.users.findOne(_id: userId)
     unless user then throw new Error("Invalid User ID: #{userId}")
     # Ensure the user IDs and roles match, or there are no access restrictions.
-    selector = $or: [{'access.userIds': $in: [userId]}, {access: $exists: false}]
-    unless _.isEmpty(user.roles) then selector.$or.push {'access.roles': $in: user.roles}
-    selector
+    userIdSelector = {'access.userIds': $in: [userId]}
+    userIdNotSelector = {'access.excludedUserIds': $nin: [userId]}
+    if _.isEmpty(user.roles)
+      userIdRoleSelector = userIdSelector
+    else
+      userIdRoleSelector = {$or: [
+        userIdSelector
+        {'access.roles': $in: user.roles}
+      ]}
+    # excludedUserIds must always be honoured. 
+    userSelectors = {$and: [
+      userIdRoleSelector
+      userIdNotSelector
+    ]}
+    selector =
+      $or: [
+        userSelectors
+        {access: $exists: false}
+      ]
 
 if Meteor.isServer then _.extend Events,
 
@@ -61,6 +77,19 @@ schema = new SimpleSchema
     index: true
   'access.userIds':
     type: [String]
+    optional: true
+    index: true
+  'access.excludedUserIds':
+    type: [String]
+    optional: true
+    index: true
+  # Document associated with the event.
+  'doc.collection':
+    type: String
+    optional: true
+    index: true
+  'doc.id':
+    type: String
     optional: true
     index: true
 
