@@ -1,12 +1,14 @@
 Events =
 
-  config: (args) ->
-    args = Setter.merge({}, args)
-
-    return if @_isConfig
-    setUpPubSub()
-    UserEventStats.config()
-    @_isConfig = true
+  config: (options) ->
+    unless @_options
+      options = Setter.merge {
+        resolveDoc: (collectionId, docId) -> null
+      }, options
+      @_options = options
+      setUpPubSub()
+      UserEventStats.config()
+    @_options
 
   parse: (arg) ->
     if Types.isString(arg)
@@ -134,6 +136,10 @@ setUpPubSub = ->
           return if addedCount >= @reactiveLimit.get()
         return if addedMap[id]?
         @added(collectionId, id, event)
+        # Also publish any collections related to the event.
+        if event.doc?
+          doc = Events.config().resolveDoc(event.doc.collection, event.doc.id)
+          if doc then @added(event.doc.collection, event.doc.id, doc)
         addedMap[id] = event
         event._id = id
         addedCount++
