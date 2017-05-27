@@ -3,6 +3,7 @@ UserEventStats =
   config: (args) ->
     return if @_isConfig
     setUpPubSub()
+    if Meteor.isServer then @_setUpEventWatcher()
     @_isConfig = true
 
   getCollection: -> collection
@@ -42,19 +43,18 @@ setUpPubSub = ->
 return unless Meteor.isServer
 
 eventsCollection = Events.getCollection()
+userEventsCollection = UserEvents.getCollection()
 
 _.extend UserEventStats,
 
-  _setUpMap: null
+  _setUpEventWatcher: () ->
+    updateAllUsers = _.throttle Meteor.bindEnvironment(=>
+      Meteor.user.find().forEach (user) => @_setUnreadCount(user._id)
+    ), 1000
+    eventsCollection.after.insert(updateAllUsers)
+    userEventsCollection.after.insert(updateAllUsers)
 
-  setUp: (userId) ->
-    @_setUpMap ?= {}
-    return if @_setUpMap[userId]
-    @_initStats(userId)
-    @_updateCountReactive(userId)
-    @_setUpMap[userId] = true
-
-  _initStats: (userId) ->
+  getStats: (userId) ->
     unless Meteor.users.findOne(_id: userId) then throw new Error('Invalid User ID')
     stats = collection.findOne(userId: userId)
     unless stats
@@ -81,17 +81,10 @@ _.extend UserEventStats,
 
   readAll: (userId) ->
     collection.update {userId: userId}, {$set: readAllDate: new Date()}
-    @_updateCountReactive(userId)
+    @_setUnreadCount(userId)
 
-  _updateCountReactive: (userId) ->
-    onEventChange = _.throttle Meteor.bindEnvironment(=> @_setUnreadCount(userId)), 1000
-
-    Collections.observe Events.getCollection(), onEventChange
-    Collections.observe UserEvents.getCollection(), onEventChange
-
-    onEventChange()
-
-Accounts.onLogin Meteor.bindEnvironment (info) -> UserEventStats.setUp(info.user._id)
+# Create stats on first login.
+Accounts.onLogin Meteor.bindEnvironment (info) -> UserEventStats.getStats(info.user._id)
 
 Meteor.methods
 

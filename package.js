@@ -1,7 +1,7 @@
 // Meteor package definition.
 Package.describe({
   name: 'aramk:events',
-  version: '0.1.1',
+  version: '0.2.0',
   summary: 'User activity events',
   git: 'https://github.com/aramk/meteor-events.git'
 });
@@ -19,6 +19,7 @@ Package.onUse(function (api) {
     'aldeed:collection2@2.3.3',
     'aramk:q@1.0.1_1',
     'digilord:roles@1.2.12',
+    'matb33:collection-hooks@0.8.4',
     'peerlibrary:server-autorun@0.5.1',
     'urbanetic:accounts-ui@0.5.0',
     'urbanetic:utility@1.2.0'
