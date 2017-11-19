@@ -7,7 +7,7 @@ Events =
       }, options
       @_options = options
       setUpPubSub()
-      UserEventStats.config()
+      UserEventStats.config(options)
     @_options
 
   parse: (arg) ->

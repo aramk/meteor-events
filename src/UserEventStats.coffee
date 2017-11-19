@@ -1,9 +1,12 @@
 UserEventStats =
 
-  config: (args) ->
+  # Limit value to avoid excessive width.
+  MAX_COUNT: 100
+
+  config: (args={}) ->
     return if @_isConfig
     setUpPubSub()
-    if Meteor.isServer then @_setUpEventWatcher()
+    if Meteor.isServer and args.watchEvents != false then @_setUpEventWatcher()
     @_isConfig = true
 
   getCollection: -> collection
@@ -47,12 +50,20 @@ userEventsCollection = UserEvents.getCollection()
 
 _.extend UserEventStats,
 
+  _isSetUp: false
+
   _setUpEventWatcher: () ->
-    updateAllUsers = _.throttle Meteor.bindEnvironment(=>
-      Meteor.user.find().forEach (user) => @_setUnreadCount(user._id)
-    ), 1000
+    return if @_isSetUp
+    updateAllUsers = _.throttle Meteor.bindEnvironment((userId, doc)=>
+      # UserEvents collection is targeted at a single user.
+      if doc.userId?
+        @_setUnreadCount(doc.userId)
+      else
+        Meteor.users.find().forEach (user) => @_setUnreadCount(user._id)
+    ), 5000
     eventsCollection.after.insert(updateAllUsers)
     userEventsCollection.after.insert(updateAllUsers)
+    @_isSetUp = true
 
   getStats: (userId) ->
     unless Meteor.users.findOne(_id: userId) then throw new Error('Invalid User ID')
@@ -62,26 +73,29 @@ _.extend UserEventStats,
       stats = collection.findOne(userId: userId)
     stats
 
-  _setUnreadCount: (userId) ->
-    count = @getUnreadCount(userId)
-    collection.update {userId: userId}, $set: unreadCount: count
+  _setUnreadCount: (userId, options) ->
+    count = @getUnreadCount(userId, options)
+    collection.update {userId: userId}, {$set: {unreadCount: count}}
 
-  getUnreadCount: (userId) ->
-    stats = collection.findOne(userId: userId)
-    return unless stats?
-    readAllDate = stats.readAllDate
-    eventSelector = Events.getUserSelector(userId)
-    # Consider all events before read all date as read.
-    if readAllDate
-      eventSelector = $and: [eventSelector, {dateCreated: $gt: readAllDate}]
+  getUnreadCount: (userId, options) ->
+    options = Setter.merge {ignoreMax: false}, options
     unread = 0
-    eventsCollection.find(eventSelector).forEach (event) ->
-      unread++ unless UserEvents.isRead(userId: userId, eventId: event._id)
-    unread
+    stats = collection.findOne(userId: userId)
+    if stats?
+      # If unread count is already at maximum, no point in querying until events are read.
+      if !options.ignoreMax and stats.unreadCount >= UserEventStats.MAX_COUNT then return UserEventStats.MAX_COUNT
+      readAllDate = stats.readAllDate
+      eventSelector = Events.getUserSelector(userId)
+      # Consider all events before read all date as read.
+      if readAllDate
+        eventSelector = $and: [eventSelector, {dateCreated: $gt: readAllDate}]
+      eventsCollection.find(eventSelector, {limit: UserEventStats.MAX_COUNT}).forEach (event) ->
+        unread++ unless UserEvents.isRead(userId: userId, eventId: event._id)
+    return unread
 
   readAll: (userId) ->
     collection.update {userId: userId}, {$set: readAllDate: new Date()}
-    @_setUnreadCount(userId)
+    @_setUnreadCount(userId, ignoreMax: true)
 
 # Create stats on first login.
 Accounts.onLogin Meteor.bindEnvironment (info) -> UserEventStats.getStats(info.user._id)
