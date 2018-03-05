@@ -25,7 +25,7 @@ Package.onUse(function (api) {
     'urbanetic:utility@2.0.0'
   ]);
   api.use([
-    'semantic:ui-css@2.0.8'
+    'semantic:ui-css@2.1.2'
   ], {weak: true});
   api.export([
     'Events',
