@@ -68,6 +68,7 @@ collection.allow
 # Prevent creating more than once user event for a given eventId and userId combination.
 
 Collections.addValidation collection, (doc) ->
+  return if @action == 'remove'
   if collection.findOne(eventId: doc.eventId, userId: doc.userId)
     throw new Error("Cannot add user event with existing eventId and userId combination: #{doc}")
 

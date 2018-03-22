@@ -88,7 +88,7 @@ _.extend UserEventStats,
       eventSelector = Events.getUserSelector(userId)
       # Consider all events before read all date as read.
       if readAllDate
-        eventSelector = $and: [eventSelector, {dateCreated: $gt: readAllDate}]
+        _.extend eventSelector, {dateCreated: $gt: readAllDate}
       eventsCollection.find(eventSelector, {limit: UserEventStats.MAX_COUNT}).forEach (event) ->
         unread++ unless UserEvents.isRead(userId: userId, eventId: event._id)
     return unread
@@ -96,6 +96,10 @@ _.extend UserEventStats,
   readAll: (userId) ->
     collection.update {userId: userId}, {$set: readAllDate: new Date()}
     @_setUnreadCount(userId, ignoreMax: true)
+
+# When all events are read, remove any user events prior to reduce data footprint.
+collection.after.update (userId, doc) ->
+  UserEvents.getCollection().remove({userId: doc.userId, dateRead: {$lte: doc.readAllDate}})
 
 # Create stats on first login.
 Accounts.onLogin Meteor.bindEnvironment (info) -> UserEventStats.getStats(info.user._id)
