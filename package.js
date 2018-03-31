@@ -10,7 +10,7 @@ Package.onUse(function (api) {
   api.versionsFrom('METEOR@1.6.1');
   api.use([
     'accounts-password',
-    'coffeescript',
+    'coffeescript@1.2.3',
     'underscore',
     'reactive-var@1.0.4',
     'tracker@1.0.5',
