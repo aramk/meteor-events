@@ -10,7 +10,7 @@ Package.onUse(function (api) {
   api.versionsFrom('METEOR@1.6.1');
   api.use([
     'accounts-password',
-    'coffeescript',
+    'coffeescript@2.2.1_1',
     'underscore',
     'reactive-var@1.0.4',
     'tracker@1.0.5',
@@ -20,9 +20,9 @@ Package.onUse(function (api) {
     'aramk:q@1.0.1_1',
     'digilord:roles@1.2.12',
     'matb33:collection-hooks@0.8.4',
-    'peerlibrary:server-autorun@0.5.1',
-    'urbanetic:accounts-ui@1.0.0',
-    'urbanetic:utility@2.0.0'
+    'peerlibrary:server-autorun@0.7.1',
+    'urbanetic:accounts-ui@1.0.0_1',
+    'urbanetic:utility@2.0.1'
   ]);
   api.use([
     'semantic:ui-css@2.1.2'
@@ -39,32 +39,33 @@ Package.onUse(function (api) {
   ]);
 });
 
-Package.onTest(function (api) {
-  api.use([
-    'accounts-password',
-    'coffeescript',
-    'tinytest',
-    'test-helpers',
-    'underscore',
-    'tracker',
+// TODO(aramk) Fails to build old packages depending on coffeescript v1.
+// Package.onTest(function (api) {
+//   api.use([
+//     'accounts-password',
+//     'coffeescript',
+//     'tinytest',
+//     'test-helpers',
+//     'underscore',
+//     'tracker',
 
-    'digilord:roles',
-    'momentjs:moment',
-    'practicalmeteor:munit',
-    'urbanetic:accounts-ui',
-    'urbanetic:utility',
-    // 'peterellisjones:describe',
+//     'digilord:roles',
+//     'momentjs:moment',
+//     'practicalmeteor:munit',
+//     'urbanetic:accounts-ui',
+//     'urbanetic:utility',
+//     // 'peterellisjones:describe',
 
-    'aramk:events'
-  ]);
+//     'aramk:events'
+//   ]);
 
-  api.addFiles([
-    'tests/fixtures/Fixtures.coffee',
-    'tests/fixtures/events.coffee',
-    'tests/fixtures/users.coffee',
-    'tests/fixtures/userEvents.coffee',
+//   api.addFiles([
+//     'tests/fixtures/Fixtures.coffee',
+//     'tests/fixtures/events.coffee',
+//     'tests/fixtures/users.coffee',
+//     'tests/fixtures/userEvents.coffee',
 
-    'tests/setup.coffee',
-    'tests/EventsSpec.coffee',
-  ]);
-});
+//     'tests/setup.coffee',
+//     'tests/EventsSpec.coffee',
+//   ]);
+// });
