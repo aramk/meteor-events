@@ -107,31 +107,47 @@ setUpPubSub = ->
   collectionId = Collections.getName(collection)
   userCollection = UserEvents.getCollection()
   userCollectionId = Collections.getName(userCollection)
+  eventsCollection = Events.getCollection()
   if Meteor.isServer
     
     publications = {}
     MIN_PUBLISH_LIMIT = 10
     PUBLISH_INCREMENT = 10
 
+    eventsCollection.after.insert (userId, doc) ->
+      pub = publications[userId]
+      pub?.addEvent(doc._id, doc, {freeNecessarySpace: true})
+    
+    eventsCollection.after.update (userId, doc) ->
+      pub = publications[userId]
+      return unless addedMap[id] and pub?
+      pub.changed(collectionId, doc._id, doc)
+    
+    eventsCollection.after.remove (userId, doc) ->
+      pub = publications[userId]
+      @removeEvent(id)
+
     Meteor.publish 'events', ->
       unless @userId then throw new Meteor.Error(403, 'User must exist for user events publication')
 
       publications[@userId] = @
       Logger.info "Created events publication for user #{@userId}"
-      @eventsCursor = Events.findByUser(@userId)
+      console.log('>>> 1')
+      @eventsCursor = Events.findByUser(@userId, limit: MIN_PUBLISH_LIMIT)
+      console.log('>>> 2')
       initializing = true
       @reactiveLimit = new ReactiveVar(MIN_PUBLISH_LIMIT)
-      addedMap = {}
+      @addedMap = addedMap = {}
       addedUserMap = {}
       addedCount = 0
 
-      addEvent = (id, event, options) =>
+      @addEvent = (id, event, options) =>
         if addedCount >= @reactiveLimit.get()
           if options?.freeNecessarySpace
             # Remove the oldest event to make room for the new event.
             sortedEvents = _.sortBy _.values(addedMap), (event) -> event.dateCreated.getTime()
             oldId = sortedEvents[0]?._id
-            removeEvent(oldId) if oldId?
+            @removeEvent(oldId) if oldId?
           # Falls through if space could not be freed.
           return if addedCount >= @reactiveLimit.get()
         return if addedMap[id]?
@@ -147,7 +163,7 @@ setUpPubSub = ->
           @added(userCollectionId, userEvent._id, userEvent)
           addedUserMap[userEvent._id] = true
 
-      removeEvent = (id) =>
+      @removeEvent = (id) =>
         return unless addedMap[id]
         @removed(collectionId, id)
         delete addedMap[id]
@@ -157,14 +173,16 @@ setUpPubSub = ->
           @removed(userCollectionId, userEvent._id)
           delete addedUserMap[userEvent._id]
 
-      observeHandle = @eventsCursor.observeChanges
-        added: (id, event) ->
-          return if initializing
-          addEvent(id, event, {freeNecessarySpace: true})
-        changed: (id, event) =>
-          return unless addedMap[id]
-          @changed(collectionId, id, event)
-        removed: (id) -> removeEvent(id)
+      # observeHandle = @eventsCursor.observeChanges
+      #   added: (id, event) ->
+      #     return if initializing
+      #     addEvent(id, event, {freeNecessarySpace: true})
+      #   changed: (id, event) =>
+      #     return unless addedMap[id]
+      #     @changed(collectionId, id, event)
+      #   removed: (id) -> removeEvent(id)
+
+      console.log('>>> 3')
 
       # Ensure changing and removing user events are published to the client. Otherwise
       # modifications on the client will be reject by the server.
@@ -183,10 +201,14 @@ setUpPubSub = ->
           delete addedUserMap[id]
           @removed(userCollectionId, id)
 
+      console.log('>>> 4')
+
       trackerHandle = Tracker.autorun =>
         limit = @reactiveLimit.get()
-        @eventsCursor.forEach (event) -> addEvent(event._id, event)
+        @eventsCursor.forEach (event) => @addEvent(event._id, event)
         Logger.info "Published #{addedCount} initial events"
+
+      console.log('>>> 5')
 
       initializing = false
       @ready()
