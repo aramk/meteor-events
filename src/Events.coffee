@@ -114,18 +114,44 @@ setUpPubSub = ->
     MIN_PUBLISH_LIMIT = 10
     PUBLISH_INCREMENT = 10
 
-    eventsCollection.after.insert (userId, doc) ->
+    eventsCollection.after.insert (userId, event) ->
       pub = publications[userId]
-      pub?.addEvent(doc._id, doc, {freeNecessarySpace: true})
+      pub?.addEvent(event._id, event, {freeNecessarySpace: true})
     
-    eventsCollection.after.update (userId, doc) ->
+    eventsCollection.after.update (userId, event) ->
       pub = publications[userId]
-      return unless addedMap[id] and pub?
-      pub.changed(collectionId, doc._id, doc)
+      id = event._id
+      return unless @addedMap[id] and pub?
+      pub.changed(collectionId, id, event)
     
-    eventsCollection.after.remove (userId, doc) ->
+    eventsCollection.after.remove (userId, event) ->
       pub = publications[userId]
-      @removeEvent(id)
+      pub?.removeEvent(event._id)
+    
+    # Ensure changing and removing user events are published to the client. Otherwise
+    # modifications on the client will be reject by the server.
+
+    userCollection.after.insert (userId, userEvent) ->
+      pub = publications[userId]
+      id = userEvent._id
+      # If a new user event is added belonging to an already published event, add it on the
+      # client.
+      return unless @addedMap[userEvent.eventId] and pub?
+      pub.added(userCollectionId, id, userEvent)
+      pub.addedUserMap[id] = true
+
+    userCollection.after.update (userId, userEvent) ->
+      pub = publications[userId]
+      id = userEvent._id
+      return unless pub? and pub.addedUserMap[id]
+      pub.changed(userCollectionId, id, userEvent)
+
+    userCollection.after.remove (userId, userEvent) ->
+      pub = publications[userId]
+      id = userEvent._id
+      return unless pub? and pub.addedUserMap[id]
+      delete pub.addedUserMap[id]
+      pub.removed(userCollectionId, id)
 
     Meteor.publish 'events', ->
       unless @userId then throw new Meteor.Error(403, 'User must exist for user events publication')
@@ -138,7 +164,7 @@ setUpPubSub = ->
       initializing = true
       @reactiveLimit = new ReactiveVar(MIN_PUBLISH_LIMIT)
       @addedMap = addedMap = {}
-      addedUserMap = {}
+      @addedUserMap = addedUserMap = {}
       addedCount = 0
 
       @addEvent = (id, event, options) =>
@@ -186,20 +212,20 @@ setUpPubSub = ->
 
       # Ensure changing and removing user events are published to the client. Otherwise
       # modifications on the client will be reject by the server.
-      userObserveHandle = userCollection.find().observeChanges
-        added: (id, userEvent) =>
-          # If a new user event is added belonging to an already published event, add it on the
-          # client.
-          return unless addedMap[userEvent.eventId]
-          @added(userCollectionId, id, userEvent)
-          addedUserMap[id] = true
-        changed: (id, userEvent) =>
-          return unless addedUserMap[id]
-          @changed(userCollectionId, id, userEvent)
-        removed: (id) =>
-          return unless addedUserMap[id]
-          delete addedUserMap[id]
-          @removed(userCollectionId, id)
+      # userObserveHandle = userCollection.find().observeChanges
+      #   added: (id, userEvent) =>
+      #     # If a new user event is added belonging to an already published event, add it on the
+      #     # client.
+      #     return unless addedMap[userEvent.eventId]
+      #     @added(userCollectionId, id, userEvent)
+      #     addedUserMap[id] = true
+      #   changed: (id, userEvent) =>
+      #     return unless addedUserMap[id]
+      #     @changed(userCollectionId, id, userEvent)
+      #   removed: (id) =>
+      #     return unless addedUserMap[id]
+      #     delete addedUserMap[id]
+      #     @removed(userCollectionId, id)
 
       console.log('>>> 4')
 
