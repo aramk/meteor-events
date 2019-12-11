@@ -1,7 +1,7 @@
 // Meteor package definition.
 Package.describe({
   name: 'aramk:events',
-  version: '1.0.0_1',
+  version: '1.1.0',
   summary: 'User activity events',
   git: 'https://github.com/aramk/meteor-events.git'
 });

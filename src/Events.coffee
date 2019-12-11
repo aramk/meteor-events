@@ -114,19 +114,33 @@ setUpPubSub = ->
     MIN_PUBLISH_LIMIT = 10
     PUBLISH_INCREMENT = 10
 
-    eventsCollection.after.insert (userId, event) ->
-      pub = publications[userId]
-      pub?.addEvent(event._id, event, {freeNecessarySpace: true})
+    getActiveUsersForEvent = (event) ->
+      userIds = []
+      for userId of publications
+        user = Meteor.users.findOne(_id: userId)
+        hasAccess = (
+          event.access?.userIds?.includes(userId) or
+          _.intersection(event.access?.roles, user.roles)
+        ) and !event.access?.excludedUserIds?.includes(userId)
+        if hasAccess then userIds.push(userId)
+      return userIds
+
+    eventsCollection.after.insert (_userId, event) ->
+      getActiveUsersForEvent(event).forEach (userId) ->
+        pub = publications[userId]
+        pub?.addEvent(event._id, event, {freeNecessarySpace: true})
     
-    eventsCollection.after.update (userId, event) ->
-      pub = publications[userId]
-      id = event._id
-      return unless @addedMap[id] and pub?
-      pub.changed(collectionId, id, event)
+    eventsCollection.after.update (_userId, event) ->
+      getActiveUsersForEvent(event).forEach (userId) ->
+        pub = publications[userId]
+        id = event._id
+        return unless pub.addedMap[id] and pub?
+        pub.changed(collectionId, id, event)
     
-    eventsCollection.after.remove (userId, event) ->
-      pub = publications[userId]
-      pub?.removeEvent(event._id)
+    eventsCollection.after.remove (_userId, event) ->
+      getActiveUsersForEvent(event).forEach (userId) ->
+        pub = publications[userId]
+        pub?.removeEvent(event._id)
     
     # Ensure changing and removing user events are published to the client. Otherwise
     # modifications on the client will be reject by the server.
@@ -136,7 +150,7 @@ setUpPubSub = ->
       id = userEvent._id
       # If a new user event is added belonging to an already published event, add it on the
       # client.
-      return unless @addedMap[userEvent.eventId] and pub?
+      return unless pub.addedMap[userEvent.eventId] and pub?
       pub.added(userCollectionId, id, userEvent)
       pub.addedUserMap[id] = true
 
@@ -158,9 +172,7 @@ setUpPubSub = ->
 
       publications[@userId] = @
       Logger.info "Created events publication for user #{@userId}"
-      console.log('>>> 1')
       @eventsCursor = Events.findByUser(@userId, limit: MIN_PUBLISH_LIMIT)
-      console.log('>>> 2')
       initializing = true
       @reactiveLimit = new ReactiveVar(MIN_PUBLISH_LIMIT)
       @addedMap = addedMap = {}
@@ -199,49 +211,15 @@ setUpPubSub = ->
           @removed(userCollectionId, userEvent._id)
           delete addedUserMap[userEvent._id]
 
-      # observeHandle = @eventsCursor.observeChanges
-      #   added: (id, event) ->
-      #     return if initializing
-      #     addEvent(id, event, {freeNecessarySpace: true})
-      #   changed: (id, event) =>
-      #     return unless addedMap[id]
-      #     @changed(collectionId, id, event)
-      #   removed: (id) -> removeEvent(id)
-
-      console.log('>>> 3')
-
-      # Ensure changing and removing user events are published to the client. Otherwise
-      # modifications on the client will be reject by the server.
-      # userObserveHandle = userCollection.find().observeChanges
-      #   added: (id, userEvent) =>
-      #     # If a new user event is added belonging to an already published event, add it on the
-      #     # client.
-      #     return unless addedMap[userEvent.eventId]
-      #     @added(userCollectionId, id, userEvent)
-      #     addedUserMap[id] = true
-      #   changed: (id, userEvent) =>
-      #     return unless addedUserMap[id]
-      #     @changed(userCollectionId, id, userEvent)
-      #   removed: (id) =>
-      #     return unless addedUserMap[id]
-      #     delete addedUserMap[id]
-      #     @removed(userCollectionId, id)
-
-      console.log('>>> 4')
-
       trackerHandle = Tracker.autorun =>
         limit = @reactiveLimit.get()
         @eventsCursor.forEach (event) => @addEvent(event._id, event)
         Logger.info "Published #{addedCount} initial events"
 
-      console.log('>>> 5')
-
       initializing = false
       @ready()
       @onStop =>
         delete publications[@userId]
-        observeHandle.stop()
-        userObserveHandle.stop()
 
       # Signal that we plan to use manual methods above.
       return undefined
