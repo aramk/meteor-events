@@ -6,7 +6,7 @@ aldeed:simple-schema@1.5.4
 allow-deny@1.1.0
 anti:i18n@0.4.3
 aramk:collection-table@1.0.0_1
-aramk:events@1.0.0_1
+aramk:events@1.3.0
 aramk:jquery-doubletap@0.1.0
 aramk:q@1.0.1_1
 aramk:routes@1.0.0_1
@@ -39,7 +39,7 @@ ecmascript-runtime@0.5.0
 ecmascript-runtime-client@0.6.2
 ecmascript-runtime-server@0.5.0
 ejson@1.1.0
-email@1.2.3
+email@2.0.0
 geojson-utils@1.0.10
 html-tools@1.0.11
 htmljs@1.0.11
@@ -96,7 +96,7 @@ templating-tools@1.1.2
 tracker@1.1.3
 ui@1.0.13
 underscore@1.0.10
-urbanetic:accounts-ui@1.0.0_1
+urbanetic:accounts-ui@1.1.0
 urbanetic:utility@2.0.1
 url@1.2.0
 webapp@1.5.0
