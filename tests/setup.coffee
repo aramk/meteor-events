@@ -1,7 +1,7 @@
 return unless Meteor.isServer
 
 createRoles = (roles) ->
-  existingRoles = Roles.getAllRoles().map (role) -> role.name
+  existingRoles = Roles.getAllRoles().map (role) -> role._ud
   newRoles = _.difference(roles, existingRoles)
   _.each newRoles, (role) -> Roles.createRole(role)
 
